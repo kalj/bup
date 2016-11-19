@@ -50,7 +50,7 @@ PREV_LINK="$BUP_ROOT/previous"
 BUP_DST="$BUP_ROOT/current"
 
 MUSIC_DST="${nas}:/volume1/music"
-MUSIC_DST="${nas}:/volume1/photo"
+PHOTO_DST="${nas}:/volume1/photo"
 
 
 ### Stuff that goes into the backup directory
