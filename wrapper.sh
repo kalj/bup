@@ -4,19 +4,17 @@
 
 
 #==============================================================================
-# User configuration
 
 # bup_prog="/home/kalle/code/bup/bup.sh"
 # bup_prog="/home/kalle/code/bup/bup.sh -n"
-bup_prog="echo 'fake execution!'"
+# bup_prog="echo 'fake execution!'"
 
-bup_interval_hours=24
-bup_dir=/home/kalle/.bup
-destination_host="nas"
 
 #==============================================================================
 
 # internal files
+conf_file=$HOME/.bupconf
+bup_dir=$HOME/.bup
 timestamp_file=${bup_dir}/stamp
 lockdir=/tmp/bup-lock-dir
 lockpidfile=/tmp/bup-lock-dir/pid
@@ -40,6 +38,9 @@ function log()
 # intialization
 #==============================================================================
 
+
+# load user configuration
+loadconf $conf_file
 
 
 
@@ -79,7 +80,7 @@ if [ $? != 0 ]; then
 fi
 
 # try to lock, i.e. make sure no other instance is running
-if ( mkdir $lockdir ) 2> /dev/null ; then
+if ( mkdir $lockdir ) &> /dev/null ; then
     echo $$ > $lockpidfile
     trap 'rm -rf "$lockdir"; exit $?' INT TERM EXIT
 else
@@ -104,7 +105,6 @@ if [ $status != 0 ]; then
     # clean up and exit
     rm -rf "$lockdir"
     trap - INT TERM EXIT
-
     exit 0
 fi
 
@@ -113,7 +113,7 @@ fi
 # perform backup
 #==============================================================================
 
-${bup_prog} &>> $detailed_file
+$bup_prog &>> $detailed_file
 
 if [ $? != 0 ] ; then
 
@@ -130,5 +130,4 @@ log "$(date --date="@${current_time}" +"%F %T"): Backup completed successfully"
 
 rm -rf "$lockdir"
 trap - INT TERM EXIT
-
 exit 0

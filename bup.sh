@@ -3,7 +3,8 @@
 # @author Karl Ljungkvist
 
 
-BUP_PROG="rsync -zavh --delete --progress"
+# bup_prog="rsync -zavh --delete --progress"
+bup_prog="echo rsync -zavh --delete --progress"
 
 function check_for_error()
 {
@@ -32,36 +33,25 @@ do
     esac
 done
 
-BUP_HOST=nas
-BUP_ROOT="${BUP_HOST}:/volume1/backup"
 
-EXCL="--exclude .cache
-      --exclude .thumbnails
-      --exclude .macromedia
-      --exclude .local/share/Trash
-      --exclude Media/Music
-      --exclude Media/Pictures
-      --exclude Downloads
-      --exclude .Private
-      --exclude Private/.thunderbird/q0nmltqo.default/ImapMail"
+for target in "${target_list[@]}" ; do
 
+    eval dest=\"\$target_${target}_destination\"
+    eval src=\"\$target_${target}_source\"
+    eval exclude=\"\$target_${target}_exclude\"
+    eval prevlink=\"\$target_${target}_previous_link\"
 
-PREV_LINK="$BUP_ROOT/previous"
-BUP_DST="$BUP_ROOT/current"
+    flags="-zavh --delete --progress"
 
-MUSIC_DST="${nas}:/volume1/music"
-PHOTO_DST="${nas}:/volume1/photo"
+    if [[ -n "$prevlink" ]] ; then
+        flags+=" -H --link-dest=${prevlink}"
+    fi
 
 
-### Stuff that goes into the backup directory
+    $bup_prog $flags $exclude "${src}" "${core_backup_host}:${dest}"
+    check_for_error "Backup failed for copying target ${target}"
 
-
-
-$BUP_PROG  -H --link-dest="$PREV_LINK/kalle" $EXCL /home/kalle/ "$BUP_DST/kalle"
-check_for_error "Backup failed for copying home directory"
-
-$BUP_PROG  /etc/            "$BUP_DST/etc"
-check_for_error "Backup failed for copying /etc"
+done
 
 # $BUP_PROG  /usr/local/bin/  "$BUP_DST/usr_local_bin"
 # check_for_error "Backup failed for copying /usr/local/bin"
@@ -69,16 +59,8 @@ check_for_error "Backup failed for copying /etc"
 # $BUP_PROG /usr/share/i18n/locales/en_SE "$BUP_DST"
 # check_for_error "Backup failed for copying custom locale"
 
-PKGLIST=`tmpfile`
-dpkg -l | grep '^ii' | \awk '{print $2}' | sort > ${PKGLIST}
-$BUP_PROG ${PKGLIST} "$BUP_DST/package_list"
-check_for_error "Backup failed for copying package list"
-rm ${PKGLIST}
-
-
-### Media
-$BUP_PROG "/home/kalle/Media/Pictures/" "${PHOTO_DEST}"
-check_for_error "Backup failed for copying photos"
-
-$BUP_PROG "/home/kalle/Media/Music/" "${MUSIC_DEST}"
-check_for_error "Backup failed for copying music"
+# PKGLIST=`tmpfile`
+# dpkg -l | grep '^ii' | \awk '{print $2}' | sort > ${PKGLIST}
+# $BUP_PROG ${PKGLIST} "$BUP_DST/package_list"
+# check_for_error "Backup failed for copying package list"
+# rm ${PKGLIST}
