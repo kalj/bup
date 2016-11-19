@@ -1,16 +1,13 @@
 #!/bin/bash
 #
+#
+#
 # @author Karl Ljungkvist
 
 
-#==============================================================================
-
-# bup_prog="/home/kalle/code/bup/bup.sh"
-# bup_prog="/home/kalle/code/bup/bup.sh -n"
-# bup_prog="echo 'fake execution!'"
-
-
-#==============================================================================
+# bup_cmd="rsync -zavh --delete --progress"
+# bup_cmd="rsync --dry-run -zavh --delete --progress"
+bup_cmd="echo rsync -zavh --delete --progress"
 
 # internal files
 conf_file=$HOME/.bupconf
@@ -19,9 +16,101 @@ timestamp_file=${bup_dir}/stamp
 lockdir=/tmp/bup-lock-dir
 lockpidfile=/tmp/bup-lock-dir/pid
 
-# logging
+# log files
 log_file=${bup_dir}/log
 detailed_file=${bup_dir}/detailed
+
+
+#==============================================================================
+# functions
+#==============================================================================
+
+# parser
+
+function parse_conf()
+{
+    conffile="$1"
+
+    target_list=()
+
+    while read -r line ;
+    do
+
+        if [[ "$line" == \[* ]] ; then
+            a="$(echo "$line" | sed 's/\[\s*\(.*\)\s*\]/\1/')"
+
+            if [[ "$a" == target* ]] ;
+            then
+
+                trg="$(echo "$a" | sed 's/.*\"\(.*\)\"/\1/')"
+
+                target_list+=("${trg}")
+
+                currentsection="target_${trg}"
+            else
+                currentsection="$a"
+            fi
+        elif echo "$line" | grep '=' &>/dev/null ;
+        then
+
+            read var val < <(echo "$line" | sed 's|\s*\(.*\)\s*=\s*\(.*\)\s*|\1 \2|')
+
+            prefix="${currentsection}_"
+
+            # use empty prefix for core variables
+            if [[ "$currentsection" == core* ]] ;
+            then
+                prefix=
+                # echo "${prefix}$var=$val"
+
+            fi
+
+            if [ "$var" == exclude ] ;
+            then
+                declare -g "${prefix}exclude+= --exclude $val"
+            else
+                declare -g "${prefix}$var=$val"
+            fi
+
+            # else
+            # echo "found something else: $line"
+        fi
+    done < <(cat "$conffile" )
+}
+
+
+
+function check_for_error()
+{
+    if [ $? != 0 ] ; then
+        >&2 echo "$(date +"%F %T"): $@"
+        exit 1
+    fi
+}
+
+# this runs all backups
+function run_backups()
+{
+    for target in "${target_list[@]}" ; do
+
+        eval dest=\"\$target_${target}_destination\"
+        eval src=\"\$target_${target}_source\"
+        eval exclude=\"\$target_${target}_exclude\"
+        eval prevlink=\"\$target_${target}_previous_link\"
+
+        flags=""
+
+        if [[ -n "$prevlink" ]] ; then
+            flags+=" -H --link-dest=${prevlink}"
+        fi
+
+
+        $bup_cmd $flags $exclude "${src}" "${backup_host}:${dest}"
+        check_for_error "Backup failed for copying target ${target}"
+
+    done
+}
+
 
 function log()
 {
@@ -33,21 +122,19 @@ function log()
    fi
 }
 
-
 #==============================================================================
-# intialization
+# Initialize
 #==============================================================================
 
+# load user configuration by parsing file
+parse_conf "$conf_file"
 
-# load user configuration
-loadconf $conf_file
-
-
+# remove quotes
+backup_host=$(sed -e 's/^"//' -e 's/"$//' <<<"$backup_host")
 
 if [ ! -d $bup_dir ] ; then
     mkdir $bup_dir
 fi
-
 
 
 last_bup=0
@@ -61,21 +148,22 @@ H=$(($S/3600))
 
 
 #==============================================================================
-# check
+# Check
 #==============================================================================
 
 # outdated backup?
-if [ $H -lt $bup_interval_hours ]; then
+if [ $H -lt $backup_interval ]; then
 
     log -dbg "Not yet time to run!"
     exit 0
 fi
 
 # is destination available?
-ping -c 1 $destination_host &>/dev/null
+ping -c 1 $backup_host &>/dev/null
 if [ $? != 0 ]; then
 
-    log -dbg "Destination ${destination_host} is not accessible"
+    log -dbg "Destination ${backup_host} is not accessible"
+
     exit 0
 fi
 
@@ -91,7 +179,7 @@ fi
 
 # we're ready to run, ask user for permission:
 
-zenity --timeout 5 --title='BUP' --question="Backup is ready to run, do you wish to continue?" &>/dev/null
+zenity --timeout 10 --title='BUP' --question --text="Backup is ready to run, do you wish to continue?" &>/dev/null
 status=$?
 if [ $status != 0 ]; then
     if [ $status == 1 ]; then
@@ -113,7 +201,7 @@ fi
 # perform backup
 #==============================================================================
 
-$bup_prog &>> $detailed_file
+run_backups &>> $detailed_file
 
 if [ $? != 0 ] ; then
 
