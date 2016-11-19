@@ -29,7 +29,7 @@ do
 
         declare "${currentsection}_$var=$val"
 
-        if [ "$var" == exclusions ] ;
+        if [ "$var" == exclude ] ;
         then
 
             declare "${currentsection}_exclude+= --exclude $val"
@@ -45,23 +45,23 @@ done < <(cat "$conffile" )
 
 
 
-echo "[core]"
-for v in backup_host backup_interval ; do
+# echo "[core]"
+# for v in backup_host backup_interval ; do
 
-    printf "    %-20s" "${v}"
-    eval str=\"\$core_$v\"
-    echo $str
+#     printf "    %-20s" "${v}"
+#     eval str=\"\$core_$v\"
+#     echo $str
 
-done
+# done
 
 
-for a in "${target_list[@]}" ;
-do
-    echo "[$a]"
-    for v in source destination previous_link exclude ; do
+# for a in "${target_list[@]}" ;
+# do
+#     echo "[$a]"
+#     for v in source destination previous_link exclude ; do
 
-        printf "    %-20s" "${v}"
-        eval str=\"\$target_${a}_$v\"
-        echo $str
-    done
-done
+#         printf "    %-20s" "${v}"
+#         eval str=\"\$target_${a}_$v\"
+#         echo $str
+#     done
+# done
