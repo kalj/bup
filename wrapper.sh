@@ -5,9 +5,7 @@
 # @author Karl Ljungkvist
 
 
-# bup_cmd="rsync -zavh --delete --progress"
-# bup_cmd="rsync --dry-run -zavh --delete --progress"
-bup_cmd="echo rsync -zavh --delete --progress"
+bup_cmd="rsync -zavh --delete"
 
 # internal files
 conf_file=$HOME/.bupconf
