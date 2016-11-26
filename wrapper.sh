@@ -19,7 +19,7 @@ lockpidfile=/tmp/bup-lock-dir/pid
 # log files
 log_file=${bup_dir}/log
 detailed_file=${bup_dir}/detailed
-
+debug_file=${bup_dir}/debug
 
 #==============================================================================
 # functions
@@ -78,7 +78,30 @@ function parse_conf()
     done < <(cat "$conffile" )
 }
 
+function log()
+{
 
+    local level=0
+    if [ "$1" == "-v" ] ; then
+        shift 1
+        level=1
+    elif [ "$1" == "-dbg" ] ; then
+        shift 1
+        level=2
+    fi
+
+    msg="$(date +"%F %T"): $@"
+
+    echo "$msg" >> $debug_file
+
+    if [ $level -lt 2 ] ; then
+        echo "$msg" >> $detailed_file
+    fi
+
+    if [ $level -lt 1 ] ; then
+        echo "$msg" >> $log_file
+    fi
+}
 
 function check_for_error()
 {
@@ -117,15 +140,6 @@ function run_backups()
 }
 
 
-function log()
-{
-   if [ "$1" == "-dbg" ] ; then
-       shift 1
-       echo "DEBUG $(date +"%F %T"): $@" >>$detailed_file
-   else
-       echo "$@" | tee -a $detailed_file $log_file
-   fi
-}
 
 #==============================================================================
 # Initialize
@@ -210,7 +224,7 @@ run_backups &>> $detailed_file
 
 if [ $? != 0 ] ; then
 
-    log "$(date --date="@${current_time}" +"%F %T"): Backup failed!"
+    log "Backup failed!"
     rm -rf "$lockdir"
     trap - INT TERM EXIT
     exit 0
@@ -219,7 +233,7 @@ fi
 notify-send 'BUP' 'Backup completed successfully' --icon=appointment-soon
 
 echo ${current_time} > ${timestamp_file}
-log "$(date --date="@${current_time}" +"%F %T"): Backup completed successfully"
+log "Backup completed successfully"
 
 rm -rf "$lockdir"
 trap - INT TERM EXIT
