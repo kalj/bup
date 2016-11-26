@@ -21,6 +21,17 @@ log_file=${bup_dir}/log
 detailed_file=${bup_dir}/detailed
 debug_file=${bup_dir}/debug
 
+# be verbose?
+if [ "$1" == "-v" ] ;
+then
+    VERBOSE=1
+elif [ "$1" == "-V" ] ;
+then
+    VERBOSE=2
+else
+    VERBOSE=0
+fi
+
 #==============================================================================
 # functions
 #==============================================================================
@@ -101,8 +112,19 @@ function log()
     if [ $level -lt 1 ] ; then
         echo "$msg" >> $log_file
     fi
+
+    if [ $level -le $VERBOSE ] ; then
+        echo "$msg"
+    fi
 }
 
+
+function log_input()
+{
+    while read l ; do
+        log "$1" "$l"
+    done
+}
 
 # this runs all backups
 function run_backups()
@@ -120,12 +142,14 @@ function run_backups()
             flags+=" -H --link-dest=${prevlink}"
         fi
 
+        log -v "Running backup of ${src} to ${backup_host}:${dest}"
 
-        $bup_cmd $flags $exclude "${src}" "${backup_host}:${dest}"
+        $bup_cmd $flags $exclude "${src}" "${backup_host}:${dest}" 2>&1 | log_input -dbg
 
-        s=$?
+        s=${PIPESTATUS[0]}
         if [  $s == 23 ] ; then
             log -v "Backup of ${src} to ${backup_host}:${dest} finished with partial file transfer errors"
+
         elif [ $s != 0 ] && [  $s != 23 ] ; then
             log -v "Backup of ${src} to ${backup_host}:${dest} failed with status $s"
 
