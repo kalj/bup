@@ -82,8 +82,13 @@ function parse_conf()
 
 function check_for_error()
 {
-    if [ $? != 0 ] ; then
-        >&2 echo "$(date +"%F %T"): $@"
+    s=$?
+    if [  $s != 23 ] ; then
+        >&2 echo "$(date +"%F %T"): $@ (partial file transfer error)"
+
+    elif [ $s != 0 ] && [  $s != 23 ] ; then
+        >&2 echo "$(date +"%F %T"): $@ (status $s)"
+
         exit 1
     fi
 }
