@@ -103,18 +103,6 @@ function log()
     fi
 }
 
-function check_for_error()
-{
-    s=$?
-    if [  $s != 23 ] ; then
-        >&2 echo "$(date +"%F %T"): $@ (partial file transfer error)"
-
-    elif [ $s != 0 ] && [  $s != 23 ] ; then
-        >&2 echo "$(date +"%F %T"): $@ (status $s)"
-
-        exit 1
-    fi
-}
 
 # this runs all backups
 function run_backups()
@@ -134,9 +122,21 @@ function run_backups()
 
 
         $bup_cmd $flags $exclude "${src}" "${backup_host}:${dest}"
-        check_for_error "Backup failed for copying target ${target}"
+
+        s=$?
+        if [  $s == 23 ] ; then
+            log -v "Backup of ${src} to ${backup_host}:${dest} finished with partial file transfer errors"
+        elif [ $s != 0 ] && [  $s != 23 ] ; then
+            log -v "Backup of ${src} to ${backup_host}:${dest} failed with status $s"
+
+            return 1
+        else
+            log -v "Backup of ${src} to ${backup_host}:${dest} finished successfully"
+        fi
 
     done
+
+    return 0
 }
 
 
@@ -220,7 +220,7 @@ fi
 # perform backup
 #==============================================================================
 
-run_backups &>> $detailed_file
+run_backups
 
 if [ $? != 0 ] ; then
 
